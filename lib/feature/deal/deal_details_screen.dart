@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../app_config.dart';
+import '../../model/deal_model.dart';
 import '../shared_widget/the_network_image.dart';
 import 'deal_details_controller.dart';
 
@@ -10,7 +11,31 @@ class DealDetailsScreen extends GetView<DealDetailsController> {
 
   @override
   Widget build(BuildContext context) {
-    final deal = controller.deal;
+    return Obx(() {
+      final deal = controller.dealOrNull;
+      if (deal == null) {
+        if (controller.loadFailed.value) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('This deal could not be found.')),
+          );
+        }
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return _DealDetailsBody(deal: deal);
+    });
+  }
+}
+
+class _DealDetailsBody extends GetView<DealDetailsController> {
+  final DealModel deal;
+
+  const _DealDetailsBody({required this.deal});
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
         slivers: [

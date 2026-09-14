@@ -17,7 +17,16 @@ class DealDetailsController extends GetxController {
     required this.analytics,
   });
 
-  late final DealModel deal;
+  // Navigating from the feed passes the already-fetched DealModel as
+  // `arguments` (fast path). A deep link (real or simulated) only carries
+  // an `id` query parameter — nothing is in memory yet, so it must be
+  // fetched. `deal` is therefore nullable until either path resolves.
+  final _deal = Rxn<DealModel>();
+  DealModel? get dealOrNull => _deal.value;
+  DealModel get deal => _deal.value!;
+
+  final isLoading = true.obs;
+  final loadFailed = false.obs;
 
   final _quantityLeft = RxnInt();
   int? get quantityLeft => _quantityLeft.value;
@@ -27,7 +36,30 @@ class DealDetailsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    deal = Get.arguments as DealModel;
+    _load();
+  }
+
+  Future<void> _load() async {
+    final args = Get.arguments;
+    if (args is DealModel) {
+      _deal.value = args;
+    } else {
+      final id = int.tryParse(Get.parameters['id'] ?? '');
+      if (id == null) {
+        loadFailed.value = true;
+        isLoading.value = false;
+        return;
+      }
+      try {
+        _deal.value = await dealRepo.fetchById(id);
+      } catch (e) {
+        LogService.error('failed to load deal $id for deep link', e);
+        loadFailed.value = true;
+        isLoading.value = false;
+        return;
+      }
+    }
+
     _quantityLeft.value = deal.quantityLeft;
     analytics.logEvent('deal_details_view', {
       'deal_id': deal.id,
@@ -38,6 +70,7 @@ class DealDetailsController extends GetxController {
     // `ever` is not tied to the controller's lifecycle on its own, and this
     // controller is recreated every time the screen opens.
     _cartWorker = ever(cartService.itemCount, (_) => _recheckAvailability());
+    isLoading.value = false;
   }
 
   @override
