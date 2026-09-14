@@ -19,8 +19,22 @@ class TheNetworkImage extends StatelessWidget {
     this.borderRadius,
   });
 
+  static double? _finite(double? v) => (v == null || !v.isFinite) ? null : v;
+
   @override
   Widget build(BuildContext context) {
+    // Deals are served at a fixed 1600x1200 regardless of how small the
+    // card actually is. Without a cache size cap, every image is decoded
+    // at full resolution and kept in the image cache at that size, which
+    // balloons memory as more cards load. Cap the decode size to roughly
+    // what will actually be displayed, in physical pixels.
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final effectiveWidth = _finite(width) ?? MediaQuery.sizeOf(context).width;
+    final cacheWidth = (effectiveWidth * dpr).round();
+    final effectiveHeight = _finite(height);
+    final cacheHeight =
+        effectiveHeight == null ? null : (effectiveHeight * dpr).round();
+
     return ClipRRect(
       borderRadius: borderRadius ?? BorderRadius.zero,
       child: CachedNetworkImage(
@@ -28,6 +42,8 @@ class TheNetworkImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        memCacheWidth: cacheWidth,
+        memCacheHeight: cacheHeight,
         placeholder: (context, _) => Shimmer.fromColors(
           baseColor: Colors.grey.shade300,
           highlightColor: Colors.grey.shade100,

@@ -14,67 +14,84 @@ class HomeScreen extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final offset = controller.scrollOffset.value;
-      return Scaffold(
-        appBar: AppBar(
-          elevation: offset > 4 ? 2 : 0,
-          shadowColor: Colors.black26,
-          title: const Row(
-            children: [
-              Icon(Icons.eco, color: AppConfig.primaryGreen),
-              SizedBox(width: 8),
-              Text('Rescu',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: () => Get.toNamed(Routes.search),
-            ),
-            IconButton(
-              icon: const Icon(Icons.map_outlined),
-              onPressed: () => Get.toNamed(Routes.map),
-            ),
-            IconButton(
-              icon: const Icon(Icons.receipt_long_outlined),
-              onPressed: () => Get.toNamed(Routes.orders),
-            ),
-            IconButton(
-              icon: const Icon(Icons.shopping_bag_outlined),
-              onPressed: () => Get.toNamed(Routes.cart),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'deeplink') _showDeepLinkDialog(context);
-                if (value == 'analytics') Get.toNamed(Routes.analyticsDebug);
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                    value: 'deeplink', child: Text('Simulate deep link…')),
-                PopupMenuItem(
-                    value: 'analytics', child: Text('Analytics debug')),
-              ],
-            ),
-          ],
-        ),
-        body: controller.isLoading.value
-            ? ListView(
-                children: const [
-                  ShimmerDealCard(),
-                  ShimmerDealCard(),
-                  ShimmerDealCard(),
+    // scrollOffset changes on every scroll pixel. It must only affect the
+    // tiny bits of UI that actually depend on it (app bar elevation, the
+    // scroll-to-top FAB) — not the whole screen. Previously a single Obx
+    // wrapped the entire Scaffold, so the whole feed (every DealCard, every
+    // image) rebuilt on every scroll frame.
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Obx(() => AppBar(
+              elevation: controller.scrollOffset.value > 4 ? 2 : 0,
+              shadowColor: Colors.black26,
+              title: const Row(
+                children: [
+                  Icon(Icons.eco, color: AppConfig.primaryGreen),
+                  SizedBox(width: 8),
+                  Text('Rescu',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 20)),
                 ],
-              )
-            : SmartRefresher(
-                controller: controller.refreshController,
-                enablePullDown: true,
-                enablePullUp: true,
-                onRefresh: controller.refreshDeals,
-                onLoading: controller.loadMore,
-                child: ListView(
-                  controller: controller.scrollController,
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () => Get.toNamed(Routes.search),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.map_outlined),
+                  onPressed: () => Get.toNamed(Routes.map),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  onPressed: () => Get.toNamed(Routes.orders),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.shopping_bag_outlined),
+                  onPressed: () => Get.toNamed(Routes.cart),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'deeplink') _showDeepLinkDialog(context);
+                    if (value == 'analytics') {
+                      Get.toNamed(Routes.analyticsDebug);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                        value: 'deeplink', child: Text('Simulate deep link…')),
+                    PopupMenuItem(
+                        value: 'analytics', child: Text('Analytics debug')),
+                  ],
+                ),
+              ],
+            )),
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return ListView(
+            children: const [
+              ShimmerDealCard(),
+              ShimmerDealCard(),
+              ShimmerDealCard(),
+            ],
+          );
+        }
+        // Read once per rebuild: visibleDeals filters the full list, so
+        // calling it from inside itemBuilder would re-filter on every card.
+        final visibleDeals = controller.visibleDeals;
+        return SmartRefresher(
+          controller: controller.refreshController,
+          enablePullDown: true,
+          enablePullUp: true,
+          onRefresh: controller.refreshDeals,
+          onLoading: controller.loadMore,
+          child: CustomScrollView(
+            controller: controller.scrollController,
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
                   children: [
                     if (controller.flashDeals.isNotEmpty)
                       FlashDealsSection(deals: controller.flashDeals),
@@ -89,25 +106,36 @@ class HomeScreen extends GetView<HomeController> {
                           FilterChip(
                             label: const Text('Pickup today'),
                             selected: controller.todayOnly.value,
-                            onSelected: (v) => controller.todayOnly.value = v,
+                            onSelected: (v) =>
+                                controller.todayOnly.value = v,
                           ),
                         ],
                       ),
                     ),
-                    ...controller.visibleDeals
-                        .map((deal) => DealCard(deal: deal)),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
-        floatingActionButton: offset > 800
-            ? FloatingActionButton.small(
-                onPressed: controller.scrollToTop,
-                child: const Icon(Icons.arrow_upward),
-              )
-            : null,
-      );
-    });
+              // Lazily built/disposed as cards scroll on/off screen, instead
+              // of every card (and its image) existing at once for the
+              // whole session.
+              SliverList.builder(
+                itemCount: visibleDeals.length,
+                itemBuilder: (context, index) =>
+                    DealCard(deal: visibleDeals[index]),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
+        );
+      }),
+      floatingActionButton: Obx(() {
+        if (controller.scrollOffset.value <= 800) return const SizedBox.shrink();
+        return FloatingActionButton.small(
+          onPressed: controller.scrollToTop,
+          child: const Icon(Icons.arrow_upward),
+        );
+      }),
+    );
   }
 
   void _showDeepLinkDialog(BuildContext context) {
