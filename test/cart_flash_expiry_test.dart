@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:rescu/model/cart_item_model.dart';
 import 'package:rescu/model/deal_model.dart';
+import 'package:rescu/repository/order_repo.dart';
 import 'package:rescu/service/cart_service.dart';
 import 'package:rescu/service/countdown_ticker_service.dart';
+import 'package:rescu/service/fake_api_service.dart';
 
 DealModel _dealJson(int id, {String? flashSaleEndsAt}) => DealModel.fromJson({
       'id': id,
@@ -31,7 +33,9 @@ DealModel _dealJson(int id, {String? flashSaleEndsAt}) => DealModel.fromJson({
 
 void main() {
   test('F-1: adding an already-expired flash deal is refused', () {
-    final cart = CartService(ticker: CountdownTickerService());
+    final cart = CartService(
+        ticker: CountdownTickerService(),
+        orderRepo: OrderRepo(api: FakeApiService()));
     final expired = _dealJson(1,
         flashSaleEndsAt: DateTime.now()
             .subtract(const Duration(seconds: 1))
@@ -50,7 +54,8 @@ void main() {
     await tester.pumpWidget(GetMaterialApp(home: Container()));
 
     final ticker = CountdownTickerService();
-    final cart = CartService(ticker: ticker);
+    final cart = CartService(
+        ticker: ticker, orderRepo: OrderRepo(api: FakeApiService()));
     cart.onInit(); // wires up the expiry sweep (normally done by Get.put)
 
     final live = _dealJson(1,

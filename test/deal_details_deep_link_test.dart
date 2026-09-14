@@ -5,6 +5,7 @@ import 'package:rescu/binding/deal_details_binding.dart';
 import 'package:rescu/feature/deal/deal_details_screen.dart';
 import 'package:rescu/model/deal_model.dart';
 import 'package:rescu/repository/deal_repo.dart';
+import 'package:rescu/repository/order_repo.dart';
 import 'package:rescu/service/analytics_service.dart';
 import 'package:rescu/service/cart_service.dart';
 import 'package:rescu/service/countdown_ticker_service.dart';
@@ -47,7 +48,9 @@ void main() {
       (tester) async {
     Get.testMode = true;
     Get.put<DealRepo>(_StubDealRepo());
-    Get.put<CartService>(CartService(ticker: CountdownTickerService()));
+    Get.put<CartService>(CartService(
+        ticker: CountdownTickerService(),
+        orderRepo: OrderRepo(api: FakeApiService())));
     Get.put<AnalyticsService>(AnalyticsService(api: FakeApiService()));
 
     await tester.pumpWidget(GetMaterialApp(

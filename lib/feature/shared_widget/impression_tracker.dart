@@ -61,7 +61,8 @@ class _ImpressionTrackerState extends State<ImpressionTracker> {
   @override
   Widget build(BuildContext context) {
     return VisibilityDetector(
-      key: Key('impression-${widget.source}-${widget.dealId}-${widget.position}'),
+      key: Key(
+          'impression-${widget.source}-${widget.dealId}-${widget.position}'),
       onVisibilityChanged: _handleVisibility,
       child: widget.child,
     );

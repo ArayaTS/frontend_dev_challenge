@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../app_config.dart';
+import '../shared_widget/flash_countdown.dart';
 import '../shared_widget/the_network_image.dart';
 import 'cart_controller.dart';
 
@@ -45,17 +46,57 @@ class CartScreen extends GetView<CartController> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w600)),
+                                  fontSize: 14.5, fontWeight: FontWeight.w600)),
                           Text(item.deal.storeName,
                               style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: Colors.grey.shade600)),
+                                  fontSize: 12.5, color: Colors.grey.shade600)),
                           Text('฿${item.deal.price.toStringAsFixed(0)} each',
                               style: const TextStyle(
                                   fontSize: 13,
                                   color: AppConfig.primaryGreen,
                                   fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          if (item.isReserving)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(
+                                  width: 11,
+                                  height: 11,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 1.5),
+                                ),
+                                const SizedBox(width: 6),
+                                Text('Reserving…',
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Colors.grey.shade600)),
+                              ],
+                            )
+                          else if (item.reservation != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.timer_outlined,
+                                    size: 13, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Text('Held for ',
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Colors.grey.shade600)),
+                                FlashCountdown(
+                                  endsAt: item.reservation!.expiresAt,
+                                  style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade700),
+                                  expiredStyle: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red.shade600),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     ),
@@ -64,15 +105,19 @@ class CartScreen extends GetView<CartController> {
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () => cart.decrement(item.deal.id),
+                          onPressed: item.isReserving
+                              ? null
+                              : () => cart.decrement(item.deal.id),
                         ),
                         Text('${item.quantity}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold)),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () => cart.add(item.deal),
+                          onPressed: item.isReserving
+                              ? null
+                              : () => cart.add(item.deal),
                         ),
                       ],
                     ),

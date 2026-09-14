@@ -5,6 +5,7 @@ import 'package:rescu/binding/deal_details_binding.dart';
 import 'package:rescu/feature/deal/deal_details_screen.dart';
 import 'package:rescu/model/deal_model.dart';
 import 'package:rescu/repository/deal_repo.dart';
+import 'package:rescu/repository/order_repo.dart';
 import 'package:rescu/service/analytics_service.dart';
 import 'package:rescu/service/cart_service.dart';
 import 'package:rescu/service/countdown_ticker_service.dart';
@@ -51,10 +52,14 @@ void main() {
       'keep re-fetching those deals on every later cart change',
       (tester) async {
     Get.testMode = true;
+    // Loaded (not a bare FakeApiService()) since the cart.add() below now
+    // goes through a real reserve() call that reads the deals catalog.
+    final api = await FakeApiService().init();
     final repo = _CountingDealRepo();
     Get.put<DealRepo>(repo);
-    Get.put<CartService>(CartService(ticker: CountdownTickerService()));
-    Get.put<AnalyticsService>(AnalyticsService(api: FakeApiService()));
+    Get.put<CartService>(CartService(
+        ticker: CountdownTickerService(), orderRepo: OrderRepo(api: api)));
+    Get.put<AnalyticsService>(AnalyticsService(api: api));
 
     await tester.pumpWidget(GetMaterialApp(home: Container()));
 
@@ -79,9 +84,15 @@ void main() {
     repo.fetchByIdCalls = 0;
 
     // Something elsewhere in the app changes the cart, e.g. adding a
-    // different deal from the home feed.
+    // different deal from the home feed. itemCount (what RES-103's fix
+    // cares about) updates optimistically before this resolves. Deal 999
+    // doesn't exist in the real catalog, so the reservation call fails and
+    // CartService shows a snackbar — pump past both its latency (up to
+    // ~1.1s) and the snackbar's own ~3s display timer so nothing is left
+    // pending at the end of the test.
     Get.find<CartService>().add(_deal(999));
     await settle();
+    await tester.pump(const Duration(seconds: 5));
 
     expect(repo.fetchByIdCalls, 0,
         reason: 'no deal-details screen is open, so nothing should be '
