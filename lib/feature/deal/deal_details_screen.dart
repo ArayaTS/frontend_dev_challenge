@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 
 import '../../app_config.dart';
 import '../../model/deal_model.dart';
+import '../../service/countdown_ticker_service.dart';
+import '../shared_widget/flash_countdown.dart';
 import '../shared_widget/the_network_image.dart';
 import 'deal_details_controller.dart';
 
@@ -58,11 +60,11 @@ class _DealDetailsBody extends GetView<DealDetailsController> {
                           fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(deal.storeName,
-                      style: TextStyle(
-                          fontSize: 15, color: Colors.grey.shade700)),
+                      style:
+                          TextStyle(fontSize: 15, color: Colors.grey.shade700)),
                   Text(deal.storeAddress,
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.grey.shade500)),
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade500)),
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -81,7 +83,8 @@ class _DealDetailsBody extends GetView<DealDetailsController> {
                       Obx(() => Chip(
                             avatar: const Icon(Icons.inventory_2_outlined,
                                 size: 16),
-                            label: Text('${controller.quantityLeft ?? '-'} left'),
+                            label:
+                                Text('${controller.quantityLeft ?? '-'} left'),
                           )),
                     ],
                   ),
@@ -121,10 +124,41 @@ class _DealDetailsBody extends GetView<DealDetailsController> {
                       ],
                     ),
                   ),
+                  if (deal.isFlashSale) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.bolt, color: Colors.red.shade700),
+                          const SizedBox(width: 12),
+                          const Text('Flash sale ends in',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          FlashCountdown(
+                            endsAt: deal.flashSaleEndsAt!,
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade700),
+                            expiredStyle: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   const Text('What you get',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   Text(deal.description,
                       style: TextStyle(
@@ -155,11 +189,26 @@ class _DealDetailsBody extends GetView<DealDetailsController> {
         color: Colors.white,
         child: SizedBox(
           width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: controller.addToCart,
-            icon: const Icon(Icons.add_shopping_cart),
-            label: const Text('Add to bag'),
-          ),
+          // Only flash-sale deals need to watch the clock to decide whether
+          // "Add to bag" should still work — a regular deal's button never
+          // depends on the shared tick.
+          child: deal.isFlashSale
+              ? Obx(() {
+                  Get.find<CountdownTickerService>().tick.value;
+                  final expired = deal.isFlashSaleExpired;
+                  return FilledButton.icon(
+                    onPressed: expired ? null : controller.addToCart,
+                    icon: Icon(expired
+                        ? Icons.timer_off_outlined
+                        : Icons.add_shopping_cart),
+                    label: Text(expired ? 'Expired' : 'Add to bag'),
+                  );
+                })
+              : FilledButton.icon(
+                  onPressed: controller.addToCart,
+                  icon: const Icon(Icons.add_shopping_cart),
+                  label: const Text('Add to bag'),
+                ),
         ),
       ),
     );

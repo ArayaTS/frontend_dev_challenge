@@ -7,6 +7,7 @@ import 'package:rescu/model/deal_model.dart';
 import 'package:rescu/repository/deal_repo.dart';
 import 'package:rescu/service/analytics_service.dart';
 import 'package:rescu/service/cart_service.dart';
+import 'package:rescu/service/countdown_ticker_service.dart';
 import 'package:rescu/service/fake_api_service.dart';
 
 DealModel _deal(int id) => DealModel.fromJson({
@@ -47,11 +48,12 @@ class _CountingDealRepo extends DealRepo {
 void main() {
   testWidgets(
       'RES-103: closing deal-details screens must not leave listeners that '
-      'keep re-fetching those deals on every later cart change', (tester) async {
+      'keep re-fetching those deals on every later cart change',
+      (tester) async {
     Get.testMode = true;
     final repo = _CountingDealRepo();
     Get.put<DealRepo>(repo);
-    Get.put<CartService>(CartService());
+    Get.put<CartService>(CartService(ticker: CountdownTickerService()));
     Get.put<AnalyticsService>(AnalyticsService());
 
     await tester.pumpWidget(GetMaterialApp(home: Container()));

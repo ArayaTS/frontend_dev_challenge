@@ -3,16 +3,61 @@ import 'package:get/get.dart';
 import '../model/cart_item_model.dart';
 import '../model/deal_model.dart';
 import '../util/log_service.dart';
+import 'countdown_ticker_service.dart';
 
 /// App-wide cart. Lives for the whole session.
 ///
 /// NOTE: the starter cart is purely local — it does not reserve stock on the
 /// backend. See the "Reservations" feature task in PROBLEM.md.
 class CartService extends GetxService {
+  final CountdownTickerService ticker;
+
+  CartService({required this.ticker});
+
   final items = <CartItemModel>[].obs;
   final itemCount = 0.obs;
 
+  Worker? _expirySweepWorker;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Piggybacks on the same shared tick every live countdown uses, instead
+    // of running its own timer, to catch flash-sale items expiring while
+    // the user is on a screen that isn't showing that deal at all.
+    _expirySweepWorker = ever(ticker.tick, (_) => _sweepExpiredFlashDeals());
+  }
+
+  @override
+  void onClose() {
+    _expirySweepWorker?.dispose();
+    super.onClose();
+  }
+
+  void _sweepExpiredFlashDeals() {
+    final expired =
+        items.where((i) => i.deal.isFlashSaleExpired).toList(growable: false);
+    if (expired.isEmpty) return;
+    for (final item in expired) {
+      items.remove(item);
+    }
+    _recount();
+    Get.snackbar(
+      'Flash sale ended',
+      expired.length == 1
+          ? '${expired.first.deal.name} was removed from your bag — '
+              'the flash sale ended.'
+          : '${expired.length} flash deals were removed from your bag — '
+              'their sales ended.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
   void add(DealModel deal) {
+    if (deal.isFlashSaleExpired) {
+      LogService.log('cart: refusing to add expired flash deal ${deal.id}');
+      return;
+    }
     final existing = items.firstWhereOrNull((i) => i.deal.id == deal.id);
     if (existing != null) {
       if (existing.quantity >= deal.quantityLeft) {

@@ -66,6 +66,11 @@ class DealModel {
 
   bool get isFlashSale => flashSaleEndsAt != null;
 
+  /// True once a flash sale's countdown has reached zero. A regular
+  /// (non-flash) deal is never "expired" in this sense.
+  bool get isFlashSaleExpired =>
+      isFlashSale && flashSaleEndsAt!.isBefore(DateTime.now());
+
   int get discountPercent =>
       originalPrice <= 0 ? 0 : (100 - (price / originalPrice * 100)).round();
 }
