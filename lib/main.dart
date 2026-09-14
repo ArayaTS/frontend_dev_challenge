@@ -19,7 +19,7 @@ Future<void> main() async {
 
 Future<void> initDependencies() async {
   await Get.putAsync(() => FakeApiService().init(), permanent: true);
-  Get.put(AnalyticsService(), permanent: true);
+  Get.put(AnalyticsService(api: Get.find()), permanent: true);
   Get.put(CountdownTickerService(), permanent: true);
   Get.put(CartService(ticker: Get.find()), permanent: true);
   Get.lazyPut(() => DealRepo(api: Get.find()), fenix: true);

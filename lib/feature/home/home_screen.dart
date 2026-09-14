@@ -5,6 +5,7 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../../app_config.dart';
 import '../../routes/routes.dart';
 import '../shared_widget/deal_card.dart';
+import '../shared_widget/impression_tracker.dart';
 import '../shared_widget/shimmer_deal_card.dart';
 import 'home_controller.dart';
 import 'widget/flash_deals_section.dart';
@@ -30,8 +31,8 @@ class HomeScreen extends GetView<HomeController> {
                   Icon(Icons.eco, color: AppConfig.primaryGreen),
                   SizedBox(width: 8),
                   Text('Rescu',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 20)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
                 ],
               ),
               actions: [
@@ -106,8 +107,7 @@ class HomeScreen extends GetView<HomeController> {
                           FilterChip(
                             label: const Text('Pickup today'),
                             selected: controller.todayOnly.value,
-                            onSelected: (v) =>
-                                controller.todayOnly.value = v,
+                            onSelected: (v) => controller.todayOnly.value = v,
                           ),
                         ],
                       ),
@@ -120,8 +120,12 @@ class HomeScreen extends GetView<HomeController> {
               // whole session.
               SliverList.builder(
                 itemCount: visibleDeals.length,
-                itemBuilder: (context, index) =>
-                    DealCard(deal: visibleDeals[index]),
+                itemBuilder: (context, index) => ImpressionTracker(
+                  dealId: visibleDeals[index].id,
+                  source: 'home_feed',
+                  position: index,
+                  child: DealCard(deal: visibleDeals[index]),
+                ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
@@ -129,7 +133,9 @@ class HomeScreen extends GetView<HomeController> {
         );
       }),
       floatingActionButton: Obx(() {
-        if (controller.scrollOffset.value <= 800) return const SizedBox.shrink();
+        if (controller.scrollOffset.value <= 800) {
+          return const SizedBox.shrink();
+        }
         return FloatingActionButton.small(
           onPressed: controller.scrollToTop,
           child: const Icon(Icons.arrow_upward),
@@ -157,9 +163,8 @@ class HomeScreen extends GetView<HomeController> {
               final uri = Uri.tryParse(textController.text.trim());
               Get.back();
               if (uri == null) return;
-              final route = uri.hasQuery
-                  ? '${uri.path}?${uri.query}'
-                  : uri.path;
+              final route =
+                  uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
               Get.toNamed(route);
             },
             child: const Text('Open'),

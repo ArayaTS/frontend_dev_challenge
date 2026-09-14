@@ -54,7 +54,7 @@ void main() {
     final repo = _CountingDealRepo();
     Get.put<DealRepo>(repo);
     Get.put<CartService>(CartService(ticker: CountdownTickerService()));
-    Get.put<AnalyticsService>(AnalyticsService());
+    Get.put<AnalyticsService>(AnalyticsService(api: FakeApiService()));
 
     await tester.pumpWidget(GetMaterialApp(home: Container()));
 

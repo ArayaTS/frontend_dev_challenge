@@ -48,7 +48,7 @@ void main() {
     Get.testMode = true;
     Get.put<DealRepo>(_StubDealRepo());
     Get.put<CartService>(CartService(ticker: CountdownTickerService()));
-    Get.put<AnalyticsService>(AnalyticsService());
+    Get.put<AnalyticsService>(AnalyticsService(api: FakeApiService()));
 
     await tester.pumpWidget(GetMaterialApp(
       initialRoute: '/home',
