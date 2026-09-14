@@ -24,6 +24,11 @@ class HomeController extends GetxController {
   int _totalPages = 1;
   bool _isFetchingMore = false;
 
+  // Bumped by every refreshDeals() call so a loadMore() request in flight at
+  // the time of a refresh can tell its result is stale once it resolves,
+  // instead of appending pre-refresh pages onto the freshly reset list.
+  int _loadGeneration = 0;
+
   bool get hasMore => _page < _totalPages;
 
   List<DealModel> get visibleDeals => todayOnly.value
@@ -56,8 +61,10 @@ class HomeController extends GetxController {
   }
 
   Future<void> refreshDeals() async {
-    _page = 1;
+    final generation = ++_loadGeneration;
     final res = await dealRepo.fetchDeals(page: 1);
+    if (generation != _loadGeneration) return;
+    _page = 1;
     _totalPages = res.totalPages;
     deals.assignAll(res.items);
     refreshController.refreshCompleted();
@@ -70,17 +77,24 @@ class HomeController extends GetxController {
       return;
     }
     _isFetchingMore = true;
-    _page++;
+    final generation = _loadGeneration;
+    final requestedPage = _page + 1;
     try {
-      final res = await dealRepo.fetchDeals(page: _page);
-      _totalPages = res.totalPages;
-      deals.addAll(res.items);
+      final res = await dealRepo.fetchDeals(page: requestedPage);
+      // A refresh started (and possibly finished) while this page was in
+      // flight: it reset the list to page 1, so appending this now-stale
+      // page would duplicate cards or overshoot the catalog size.
+      if (generation == _loadGeneration) {
+        _page = requestedPage;
+        _totalPages = res.totalPages;
+        deals.addAll(res.items);
+      }
     } catch (e) {
       LogService.error('loadMore failed', e);
-      _page--;
+    } finally {
+      _isFetchingMore = false;
+      refreshController.loadComplete();
     }
-    _isFetchingMore = false;
-    refreshController.loadComplete();
   }
 
   void scrollToTop() {
