@@ -22,6 +22,8 @@ class DealDetailsController extends GetxController {
   final _quantityLeft = RxnInt();
   int? get quantityLeft => _quantityLeft.value;
 
+  Worker? _cartWorker;
+
   @override
   void onInit() {
     super.onInit();
@@ -32,8 +34,16 @@ class DealDetailsController extends GetxController {
       'source': Get.parameters['source'] ?? 'unknown',
     });
     // Whenever the cart changes, re-check this deal's remaining stock so the
-    // details screen never shows stale availability.
-    ever(cartService.itemCount, (_) => _recheckAvailability());
+    // details screen never shows stale availability. Disposed in onClose —
+    // `ever` is not tied to the controller's lifecycle on its own, and this
+    // controller is recreated every time the screen opens.
+    _cartWorker = ever(cartService.itemCount, (_) => _recheckAvailability());
+  }
+
+  @override
+  void onClose() {
+    _cartWorker?.dispose();
+    super.onClose();
   }
 
   Future<void> _recheckAvailability() async {
